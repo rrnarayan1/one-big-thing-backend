@@ -3,8 +3,10 @@ from firebase_admin import firestore
 import flask
 from flask import request
 import pandas as pd
+from flask_cors import CORS
 
 app = flask.Flask(__name__)
+cors = CORS(app)
 
 firebase_admin.initialize_app()
 db = firestore.client()
@@ -29,9 +31,10 @@ def hello():
 
 @app.route('/game')
 def game():
-    season_id = request.form.get('seasonId')
-    team_id = request.form.get('teamId')
-    game_id = request.form.get('gameId')
+    print(request.form)
+    season_id = request.args.get('seasonId')
+    team_id = request.args.get('teamId')
+    game_id = request.args.get('gameId')
     if (not season_id or not team_id or not game_id):
         return flask.abort(400)
 
@@ -42,11 +45,11 @@ def game():
 
 @app.route('/score')
 def score():
-    season_id = request.form.get('seasonId')
-    team_id = request.form.get('teamId')
-    game_id = request.form.get('gameId')
-    data = request.form.get('data')
-    portion = request.form.get('portion')
+    season_id = request.args.get('seasonId')
+    team_id = request.args.get('teamId')
+    game_id = request.args.get('gameId')
+    data = request.args.get('data')
+    portion = request.args.get('portion')
 
     if (not season_id or not team_id or not game_id):
         return flask.abort(400)
