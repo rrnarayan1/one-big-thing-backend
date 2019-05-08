@@ -4,6 +4,7 @@ import flask
 from flask import request
 import pandas as pd
 from flask_cors import CORS
+import numpy as np
 
 app = flask.Flask(__name__)
 cors = CORS(app)
@@ -61,32 +62,13 @@ def score():
     # if data not defined, provide a default
     if (not data):
         data_season_id = int(game[u"SEASON_ID"])
-        # if playoffs, use the regular season
-        if (data_season_id > 40000):
-            data_season_id -= 20000
-            data = str(data_season_id)
+        data, portion = _get_default_data(data_season_id, game)
 
-        # if at beginning of season, use last season as data
-        elif (game["GAME_NUM"] < 10):
-            data = str(data_season_id-1)
-        
-        # else, take that season's games up to that point
-        else:
-            data = str(data_season_id)
-            portion = "before"
-
-    # only use portion = before if data is for that year
+    # only use 'portion = before' if data is for that year
     if (portion == "before" and game[u"SEASON_ID"] != data):
         return flask.abort(422)
 
-    data_season_collection = seasons[data]
-    if (portion == "before"):
-        data_games = db.collection(data_season_collection) \
-            .where(u"TEAM_ID", u"==", team_id) \
-            .where(u"GAME_NUM", u"<", game[u"GAME_NUM"]).get()
-    else:
-        data_games = db.collection(data_season_collection) \
-            .where(u"TEAM_ID", u"==",team_id).get()
+    data_games = _get_games_stats(data, portion, team_id, game)
 
     if (not data_games):
         return flask.abort(404)
@@ -102,12 +84,55 @@ def score():
     mean = df.mean()
     std = df.std()
     diff = (game_stat - mean) / std
+    one_big_thing = {}
 
-    response["data"] = data;
-    response["portion"] = portion;
+    diff["TOV"] = diff["TOV"]*-1
+    pos_idx = np.array(diff).argmax()
+    neg_idx = np.array(diff).argmin()
+    abs_idx = np.array(np.abs(diff)).argmax()
+    diff["TOV"] = diff["TOV"]*-1
+
+    one_big_thing["absolute"] = {"stat": diff.index[abs_idx], "score": diff.iloc[abs_idx]}
+    one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": diff.iloc[pos_idx]}
+    one_big_thing["negative"] = {"stat": diff.index[neg_idx], "score": diff.iloc[neg_idx]}
+
+    response["data"] = data
+    response["portion"] = portion
     response["scores"]=diff.to_dict()
     response["game"]=game
+    response["obt"]=one_big_thing
     return flask.jsonify(response)
+
+def _get_games_stats(data, portion, team_id, game):
+    data_season_collection = seasons[data]
+    try:
+        if (portion == "before"):
+            data_games = db.collection(data_season_collection) \
+                .where(u"TEAM_ID", u"==", team_id) \
+                .where(u"GAME_NUM", u"<", game[u"GAME_NUM"]).get()
+        else:
+            data_games = db.collection(data_season_collection) \
+                .where(u"TEAM_ID", u"==",team_id).get()
+        return data_games
+    except:
+        return None
+
+def _get_default_data(season_id_int, game):
+    portion = None
+    # if playoffs, use the regular season
+    if (season_id_int > 40000):
+        season_id_int -= 20000
+        data = str(season_id_int)
+
+    # if at "beginning" of season, use last season as data
+    elif (game["GAME_NUM"] < 10):
+        data = str(season_id_int-1)
+
+    # else, take that season's games up to that point
+    else:
+        data = str(season_id_int)
+        portion = "before"
+    return data, portion
 
 # returns the game as a dictionary. if not present, returns None
 def _get_game(season_id, team_id, game_id):
