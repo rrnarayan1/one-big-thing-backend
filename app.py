@@ -83,7 +83,7 @@ def score():
     df = df[stat_categories]
     mean = df.mean()
     std = df.std()
-    diff = (game_stat - mean) / std
+    diff = np.round(((game_stat - mean) / std), 2)
     one_big_thing = {}
 
     diff["TOV"] = diff["TOV"]*-1
@@ -92,9 +92,9 @@ def score():
     abs_idx = np.array(np.abs(diff)).argmax()
     diff["TOV"] = diff["TOV"]*-1
 
-    one_big_thing["absolute"] = {"stat": diff.index[abs_idx], "score": round(diff.iloc[abs_idx],2)}
-    one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": round(diff.iloc[pos_idx],2)}
-    one_big_thing["negative"] = {"stat": diff.index[neg_idx], "score": round(diff.iloc[neg_idx],2)}
+    one_big_thing["absolute"] = {"stat": diff.index[abs_idx], "score": diff.iloc[abs_idx]}
+    one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": diff.iloc[pos_idx]}
+    one_big_thing["negative"] = {"stat": diff.index[neg_idx], "score": diff.iloc[neg_idx]}
 
     response["data"] = data
     response["portion"] = portion
