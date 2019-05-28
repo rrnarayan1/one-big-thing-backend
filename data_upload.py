@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import firestore
 import csv
+import json
 from datetime import datetime
 
 firebase_admin.initialize_app()
@@ -31,4 +32,19 @@ def upload_file(csv_file):
             db.collection("18-19Reg").document(doc_name).set(db_dict)
             print("Wrote "+db_dict["MATCHUP"]+" "+str(db_dict["GAME_DATE"]))
             return
-upload_file("../scripts/data/2018-19-RegularSeason-nba.csv")
+
+def upload_teams(json_file):
+    print(json_file)
+    with open(json_file) as f:
+        teams = json.load(f)
+        for team in teams:
+            team_upload = {}
+            team_upload[u"TEAM_ID"] = str(team["teamId"])
+            team_upload[u"TEAM_ABBREVIATION"] = team["abbreviation"]
+            team_upload[u"TEAM_NAME"] = team["teamName"]
+            team_upload[u"SIMPLE_NAME"] = team["simpleName"]
+            team_upload[u"LOCATION"] = team["location"]
+            team_upload[u"LOGO"] = "https://stats.nba.com/media/img/teams/logos/"+team["abbreviation"]+"_logo.svg"
+            db.collection("teams").document(team_upload[u"TEAM_ID"]).set(team_upload)
+upload_teams("./data/teams.json")
+#upload_file("../scripts/data/2018-19-RegularSeason-nba.csv")

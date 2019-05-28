@@ -32,7 +32,6 @@ def hello():
 
 @app.route('/game')
 def game():
-    print(request.form)
     season_id = request.args.get('seasonId')
     team_id = request.args.get('teamId')
     game_id = request.args.get('gameId')
@@ -56,7 +55,13 @@ def score():
         return flask.abort(400)
 
     game = _get_game(season_id, team_id, game_id)
+    opp_game = _get_opp_game(season_id, team_id, game_id)
     if (not game):
+        return flask.abort(404)
+
+    team = _get_team(game[u"TEAM_ID"])
+    opp_team = _get_team(opp_game[u"TEAM_ID"])
+    if (not team or not opp_team):
         return flask.abort(404)
 
     # if data not defined, provide a default
@@ -83,7 +88,7 @@ def score():
     df = df[stat_categories]
     mean = df.mean()
     std = df.std()
-    diff = np.round(((game_stat - mean) / std), 2)
+    diff = np.round(((game_stat - mean) / std).astype(np.double), 2)
     one_big_thing = {}
 
     diff["TOV"] = diff["TOV"]*-1
@@ -96,11 +101,16 @@ def score():
     one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": diff.iloc[pos_idx]}
     one_big_thing["negative"] = {"stat": diff.index[neg_idx], "score": diff.iloc[neg_idx]}
 
-    response["data"] = data
-    response["portion"] = portion
+    game = {k:game[k] for k in game.keys() if k not in stat_categories}
+    print(game)
+    #response["data"]=data
+    #response["portion"]=portion
     response["scores"]=diff.to_dict()
+    response["stats"]=game_stat.to_dict()
     response["game"]=game
     response["obt"]=one_big_thing
+    response["team"]=team
+    response["opp_team"]=opp_team
     return flask.jsonify(response)
 
 def _get_games_stats(data, portion, team_id, game):
@@ -139,7 +149,27 @@ def _get_game(season_id, team_id, game_id):
     season_collection = seasons[season_id]
     doc_ref = db.document(season_collection,team_id + "-" + game_id)
     try:
-        doc = doc_ref.get().to_dict()
-        return doc
+        game_doc = doc_ref.get().to_dict()
+        return game_doc
+    except:
+        return None
+
+#returns game for the team not listed in the team_id
+def _get_opp_game(season_id, team_id, game_id):
+    season_collection = seasons[season_id]
+    doc_ref = db.collection(season_collection).where(u"GAME_ID",u"==",game_id)
+    try:
+        games = doc_ref.get()
+        for game in games:
+            game_dict = game.to_dict()
+            if (game_dict[u"TEAM_ID"] != team_id):
+                return game_dict
+    except:
+        return None
+
+def _get_team(team_id):
+    doc_ref = db.document("teams",team_id)
+    try:
+        return doc_ref.get().to_dict()
     except:
         return None
