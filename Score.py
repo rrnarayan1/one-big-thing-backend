@@ -5,7 +5,7 @@ stat_categories = ['FGM', 'FGA', 'FG_PCT', 'FG3M','FG3A', \
 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', \
 'AST','STL', 'BLK', 'TOV', 'PTS']
 
-def get_scores(list_data_games, game, team, opp_team):
+def _get_scores(list_data_games, game):
     response = {}
     game_stat = pd.Series(game)[stat_categories]
     df = pd.DataFrame(list_data_games)
@@ -32,6 +32,21 @@ def get_scores(list_data_games, game, team, opp_team):
     response["stats"]=game_stat.to_dict()
     response["game"]=game
     response["obt"]=one_big_thing
-    response["team"]=team
-    response["opp_team"]=opp_team
     return response
+
+def _get_default_data(season_id_int, game):
+    portion = None
+    # if playoffs, use the regular season
+    if (season_id_int > 40000):
+        season_id_int -= 20000
+        data = str(season_id_int)
+
+    # if at "beginning" of season, use last season as data
+    elif (game["GAME_NUM"] < 10):
+        data = str(season_id_int-1)
+
+    # else, take that season's games.
+    else:
+        data = str(season_id_int)
+        #portion = "before"
+    return data, portion

@@ -1,4 +1,5 @@
 from Teams import get_team_by_id, get_all_teams
+from Score import _get_scores
 
 seasons = {
   "22016": "16-17Reg",
@@ -44,27 +45,27 @@ def get_games_stats(db, data, portion, team_id, game):
         else:
             data_games = db.collection(data_season_collection) \
                 .where(u"TEAM_ID", u"==",team_id).get()
-        return data_games
+            list_data_games = []
+            for data_game in data_games:
+                list_data_games.append(data_game.to_dict())
+            return list_data_games
     except:
         return None
 
-def get_games_info_by_team_and_season(db, season_id, team_id):
+def get_games_info_by_team_and_season(db, season_id, team_id, with_obt):
     season_collection = seasons[season_id]
-    doc_ref = db.collection(season_collection).where(u"TEAM_ID", u"==", team_id)
-    response = {}
+    games = get_games_stats(db, season_id, None, team_id, None)
     teams = get_all_teams(db)
+    response = {}
     response["team"] = get_team_by_id(db, team_id)
-    try:
-        games = doc_ref.get()
-        game_list = []
-        for game in games:
-            game_dict = game.to_dict()
-            game_dict = {k : game_dict[k] for k in game_info}
-            game_dict["OPP_TEAM"] = teams[game_dict["MATCHUP"][-3:]]
-            game_list.append(game_dict)
-        response["games"] = game_list
-        return response
-    except:
-        return None
+    game_list = []
+    for game in games:
+        scores = _get_scores(games, game)
+        game_dict = {k : game[k] for k in game_info}
+        game_dict["OPP_TEAM"] = teams[game_dict["MATCHUP"][-3:]]
+        game_dict["OBT"] = scores["obt"]
+        game_list.append(game_dict)
+    response["games"] = game_list
+    return response
 
 

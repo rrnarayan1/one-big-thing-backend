@@ -7,7 +7,7 @@ from flask_cors import CORS
 import numpy as np
 from Teams import get_team_by_id
 from Games import get_game, get_opp_game, get_games_stats, get_games_info_by_team_and_season
-from Score import get_scores
+from Score import _get_scores, _get_default_data
 
 app = flask.Flask(__name__)
 cors = CORS(app)
@@ -76,40 +76,24 @@ def score():
     if (portion == "before" and game[u"SEASON_ID"] != data):
         return flask.abort(422)
 
-    data_games = get_games_stats(db, data, portion, team_id, game)
+    list_data_games = get_games_stats(db, data, portion, team_id, game)
 
-    if (not data_games):
+    if (not list_data_games):
         return flask.abort(404)
 
-    list_data_games = []
-    for data_game in data_games:
-        list_data_games.append(data_game.to_dict())
-    return flask.jsonify(get_scores(list_data_games, game, team, opp_team))
+    response = _get_scores(list_data_games, game)
+    response["team"]=team
+    response["opp_team"]=opp_team
+    return flask.jsonify(response)
 
 @app.route('/games')
 def games():
     season_id = request.args.get('seasonId')
     team_id = request.args.get('teamId')
+    with_obt = request.args.get('withOBT')
     if (not season_id or not team_id):
         return flask.abort(400)
 
-    games = get_games_info_by_team_and_season(db, season_id, team_id)
+    games = get_games_info_by_team_and_season(db, season_id, team_id, with_obt)
+
     return flask.jsonify(games)
-
-def _get_default_data(season_id_int, game):
-    portion = None
-    # if playoffs, use the regular season
-    if (season_id_int > 40000):
-        season_id_int -= 20000
-        data = str(season_id_int)
-
-    # if at "beginning" of season, use last season as data
-    elif (game["GAME_NUM"] < 10):
-        data = str(season_id_int-1)
-
-    # else, take that season's games up to that point
-    else:
-        data = str(season_id_int)
-        portion = "before"
-    return data, portion
-
