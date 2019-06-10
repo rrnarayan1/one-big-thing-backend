@@ -42,8 +42,8 @@ def _get_default_data(season_id_int, game):
         data = str(season_id_int)
 
     # if at "beginning" of season, use last season as data
-    elif (game["GAME_NUM"] < 10):
-        data = str(season_id_int-1)
+    #elif (game["GAME_NUM"] < 10):
+    #    data = str(season_id_int-1)
 
     # else, take that season's games.
     else:
