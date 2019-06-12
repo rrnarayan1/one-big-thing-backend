@@ -91,9 +91,10 @@ def games():
     season_id = request.args.get('seasonId')
     team_id = request.args.get('teamId')
     with_obt = request.args.get('withOBT')
+    with_summary = request.args.get('withSummary')
     if (not season_id or not team_id):
         return flask.abort(400)
 
-    games = get_games_info_by_team_and_season(db, season_id, team_id, with_obt)
+    games = get_games_info_by_team_and_season(db, season_id, team_id, with_obt, with_summary)
 
     return flask.jsonify(games)

@@ -1,5 +1,7 @@
 from Teams import get_team_by_id, get_all_teams
 from Score import _get_scores
+import pandas as pd
+from scipy import stats
 
 seasons = {
   "22016": "16-17Reg",
@@ -52,20 +54,45 @@ def get_games_stats(db, data, portion, team_id, game):
     except:
         return None
 
-def get_games_info_by_team_and_season(db, season_id, team_id, with_obt):
+def get_games_info_by_team_and_season(db, season_id, team_id, with_obt, with_summary):
     season_collection = seasons[season_id]
     games = get_games_stats(db, season_id, None, team_id, None)
     teams = get_all_teams(db)
     response = {}
     response["team"] = get_team_by_id(db, team_id)
     game_list = []
+    obt_list = []
     for game in games:
-        scores = _get_scores(games, game)
         game_dict = {k : game[k] for k in game_info}
+        if (with_obt):
+            scores = _get_scores(games, game)
+            obt = scores["obt"]
+            game_dict["OBT"] = obt
+            obt["WL"] = game_dict["WL"]
+            obt_list.append(obt)
         game_dict["OPP_TEAM"] = teams[game_dict["MATCHUP"][-3:]]
-        game_dict["OBT"] = scores["obt"]
         game_list.append(game_dict)
     response["games"] = game_list
+    if (with_summary):
+        obt_df = pd.DataFrame(obt_list)
+        print(obt_df)
+        pos = obt_df["positive"].apply(pd.Series)
+        neg = obt_df["negative"].apply(pd.Series)
+        pos_mode = stats.mode(pos["stat"]).mode
+        neg_mode = stats.mode(neg["stat"]).mode
+        wins = obt_df[obt_df["WL"] == "W"]["absolute"].apply(pd.Series)
+        loss = obt_df[obt_df["WL"] == "L"]["absolute"].apply(pd.Series)
+        wins_mode = stats.mode(wins["stat"]).mode
+        loss_mode = stats.mode(loss["stat"]).mode
+
+        summary = {}
+        summary["pos_stat_mode"] = pos_mode[0]
+        summary["neg_stat_mode"] = neg_mode[0]
+        summary["wins_stat_mode"] = wins_mode[0]
+        summary["loss_stat_mode"] = loss_mode[0]
+        summary["record"] = str(len(wins))+"-"+str(len(loss))
+        response["summary"] = summary
+
     return response
 
 
