@@ -1,7 +1,7 @@
 from Teams import get_team_by_id, get_all_teams
-from Score import _get_scores
+from Score import _get_scores, _get_team_season_summary
 import pandas as pd
-from scipy import stats
+
 
 seasons = {
   "22016": "16-17Reg",
@@ -13,6 +13,10 @@ seasons = {
 
 game_info = ['GAME_DATE', 'GAME_ID', 'MATCHUP', 'GAME_NUM','PTS', \
 'PLUS_MINUS', 'SEASON_ID', 'TEAM_ABBREVIATION', 'TEAM_ID', 'TEAM_NAME', 'WL']
+
+stat_categories = ['FGM', 'FGA', 'FG_PCT', 'FG3M','FG3A', \
+'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', \
+'AST','STL', 'BLK', 'TOV', 'PTS']
 
 # returns the game as a dictionary. if not present, returns None
 def get_game(db, season_id, team_id, game_id):
@@ -60,37 +64,28 @@ def get_games_info_by_team_and_season(db, season_id, team_id, with_obt, with_sum
     teams = get_all_teams(db)
     response = {}
     response["team"] = get_team_by_id(db, team_id)
-    game_list = []
+    game_info_list = []
+    game_stat_list = []
     obt_list = []
     for game in games:
-        game_dict = {k : game[k] for k in game_info}
+        info_dict = {k : game[k] for k in game_info}
+        stat_dict = {k : game[k] for k in stat_categories}
         if (with_obt):
             scores = _get_scores(games, game)
             obt = scores["obt"]
-            game_dict["OBT"] = obt
-            obt["WL"] = game_dict["WL"]
-            obt_list.append(obt)
-        game_dict["OPP_TEAM"] = teams[game_dict["MATCHUP"][-3:]]
-        game_list.append(game_dict)
-    response["games"] = game_list
-    if (with_summary):
-        obt_df = pd.DataFrame(obt_list)
-        print(obt_df)
-        pos = obt_df["positive"].apply(pd.Series)
-        neg = obt_df["negative"].apply(pd.Series)
-        pos_mode = stats.mode(pos["stat"]).mode
-        neg_mode = stats.mode(neg["stat"]).mode
-        wins = obt_df[obt_df["WL"] == "W"]["absolute"].apply(pd.Series)
-        loss = obt_df[obt_df["WL"] == "L"]["absolute"].apply(pd.Series)
-        wins_mode = stats.mode(wins["stat"]).mode
-        loss_mode = stats.mode(loss["stat"]).mode
+            info_dict["OBT"] = obt
+            if (with_summary):
+                obt["WL"] = info_dict["WL"]
+                stat_dict["WL"] = info_dict["WL"]
 
-        summary = {}
-        summary["pos_stat_mode"] = pos_mode[0]
-        summary["neg_stat_mode"] = neg_mode[0]
-        summary["wins_stat_mode"] = wins_mode[0]
-        summary["loss_stat_mode"] = loss_mode[0]
-        summary["record"] = str(len(wins))+"-"+str(len(loss))
+            obt_list.append(obt)
+        info_dict["OPP_TEAM"] = teams[info_dict["MATCHUP"][-3:]]
+        game_info_list.append(info_dict)
+        game_stat_list.append(stat_dict)
+    response["games"] = game_info_list
+
+    if (with_summary and with_obt):
+        summary = _get_team_season_summary(obt_list, game_stat_list)
         response["summary"] = summary
 
     return response

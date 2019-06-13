@@ -1,5 +1,6 @@
 import numpy as np
-import pandas as pd 
+import pandas as pd
+from scipy import stats
 
 stat_categories = ['FGM', 'FGA', 'FG_PCT', 'FG3M','FG3A', \
 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', \
@@ -19,7 +20,7 @@ def _get_scores(list_data_games, game):
     pos_idx = np.array(diff).argmax()
     neg_idx = np.array(diff).argmin()
     abs_idx = np.array(np.abs(diff)).argmax()
-    diff["TOV"] = diff["TOV"]*-1
+    #diff["TOV"] = diff["TOV"]*-1
 
     one_big_thing["absolute"] = {"stat": diff.index[abs_idx], "score": diff.iloc[abs_idx]}
     one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": diff.iloc[pos_idx]}
@@ -33,6 +34,42 @@ def _get_scores(list_data_games, game):
     response["game"]=game
     response["obt"]=one_big_thing
     return response
+
+# each obt object in the list should have the "WL" set
+def _get_team_season_summary(obt_list, stat_list):
+    obt_df = pd.DataFrame(obt_list)
+    wins = obt_df[obt_df["WL"] == "W"]["absolute"].apply(pd.Series)
+    loss = obt_df[obt_df["WL"] == "L"]["absolute"].apply(pd.Series)
+    wins_mode = stats.mode(wins["stat"]).mode[0]
+    loss_mode = stats.mode(loss["stat"]).mode[0]
+
+    stats_df = pd.DataFrame(stat_list)
+    wins_mode_stat_list = list(stats_df[stats_df["WL"] == "W"][wins_mode])
+    wins_mode_stat_avg = np.mean(stats_df[wins_mode])
+    wins_mode_stat_win_avg = np.mean(stats_df[stats_df["WL"] == "W"][wins_mode])
+    wins_mode_stat_loss_avg = np.mean(stats_df[stats_df["WL"] == "L"][wins_mode])
+    loss_mode_stat_list = list(stats_df[stats_df["WL"] == "L"][loss_mode])
+    loss_mode_stat_avg = np.mean(stats_df[loss_mode])
+    loss_mode_stat_win_avg = np.mean(stats_df[stats_df["WL"] == "W"][loss_mode])
+    loss_mode_stat_loss_avg = np.mean(stats_df[stats_df["WL"] == "L"][loss_mode])
+
+    summary = {}
+    wins_response = {}
+    wins_response["stat"] = wins_mode
+    wins_response["stat_list"] = wins_mode_stat_list
+    wins_response["stat_avg"] = wins_mode_stat_avg
+    wins_response["stat_win_avg"] = wins_mode_stat_win_avg
+    wins_response["stat_loss_avg"] = wins_mode_stat_loss_avg
+    loss_response = {}
+    loss_response["stat"] = loss_mode
+    loss_response["stat_list"] = loss_mode_stat_list
+    loss_response["stat_avg"] = loss_mode_stat_avg
+    loss_response["stat_win_avg"] = loss_mode_stat_win_avg
+    loss_response["stat_loss_avg"] = loss_mode_stat_loss_avg
+    summary["wins_stats"] = wins_response
+    summary["loss_stats"] = loss_response
+    summary["record"] = str(len(wins))+"-"+str(len(loss))
+    return summary
 
 def _get_default_data(season_id_int, game):
     portion = None

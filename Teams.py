@@ -8,6 +8,7 @@ def get_team_by_id(db, team_id):
     except:
         return None
 
+# returns dictionary, key is the abbreviation to the team
 def get_all_teams(db):
     ret = {}
     doc_ref = db.collection("teams").get()
