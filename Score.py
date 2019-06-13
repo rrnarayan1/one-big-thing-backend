@@ -25,6 +25,7 @@ def _get_scores(list_data_games, game):
     one_big_thing["absolute"] = {"stat": diff.index[abs_idx], "score": diff.iloc[abs_idx]}
     one_big_thing["positive"] = {"stat": diff.index[pos_idx], "score": diff.iloc[pos_idx]}
     one_big_thing["negative"] = {"stat": diff.index[neg_idx], "score": diff.iloc[neg_idx]}
+    one_big_thing["default"] = one_big_thing["positive"] if game["WL"] == "W" else one_big_thing["negative"]
 
     game = {k:game[k] for k in game.keys() if k not in stat_categories}
     #response["data"]=data
